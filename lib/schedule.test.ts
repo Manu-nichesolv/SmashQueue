@@ -98,12 +98,61 @@ test("games played and sits stay within one across a long run", () => {
   }
 });
 
+test("three singles players on one court each meet once", () => {
+  const seen = new Set<string>();
+  const sat = Array(3).fill(0);
+  for (let game = 0; game < 3; game += 1) {
+    const round = getRound(3, 1, game, "singles");
+    assert.equal(round.sitting.length, 1);
+    assert.equal(round.matches[0].sideA.length, 1);
+    assert.equal(round.matches[0].sideB.length, 1);
+    sat[round.sitting[0]] += 1;
+    const pair = [round.matches[0].sideA[0], round.matches[0].sideB[0]].sort((a, b) => a - b).join("-");
+    seen.add(pair);
+    assert.equal(round.matches[0].repeatMatch, false);
+  }
+  assert.equal(seen.size, 3);
+  assert.deepEqual(sat, [1, 1, 1]);
+});
+
+test("singles games and sits stay within one", () => {
+  const setups: Array<[number, number, number]> = [
+    [2, 1, 4],
+    [5, 1, 15],
+    [6, 2, 12],
+  ];
+  for (const [players, courts, rounds] of setups) {
+    const played = Array(players).fill(0);
+    const sat = Array(players).fill(0);
+    for (let game = 0; game < rounds; game += 1) {
+      const round = getRound(players, courts, game, "singles");
+      const seen = new Set<number>();
+      assert.equal(round.matches.length, courts);
+      assert.equal(round.sitting.length, players - courts * 2);
+      for (const sitter of round.sitting) {
+        seen.add(sitter);
+        sat[sitter] += 1;
+      }
+      for (const match of round.matches) {
+        for (const player of [...match.sideA, ...match.sideB]) {
+          assert.equal(seen.has(player), false);
+          seen.add(player);
+          played[player] += 1;
+        }
+      }
+      assert.equal(seen.size, players);
+      assert.ok(span(played) <= 1);
+      assert.ok(span(sat) <= 1);
+    }
+  }
+});
+
 function countPair(map: Map<string, number>, pair: [number, number]) {
   const key = [...pair].sort((a, b) => a - b).join("-");
   map.set(key, (map.get(key) ?? 0) + 1);
 }
 
-function pairingKey(a: [number, number], b: [number, number]) {
+function pairingKey(a: number[], b: number[]) {
   return [a.join("-"), b.join("-")].sort().join("|");
 }
 

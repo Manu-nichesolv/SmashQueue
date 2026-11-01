@@ -1,4 +1,4 @@
-import { SPORTS, type Sport } from "@/lib/types";
+import { SPORTS, type Format, type Sport } from "@/lib/types";
 import { motionStyle } from "./motion";
 
 export function CoverArt() {
@@ -22,6 +22,36 @@ export function HomeScreen({ onPlay }: { onPlay: () => void }) {
         onClick={onPlay}
       >
         Play
+      </button>
+    </div>
+  );
+}
+
+export function FormatPicker({ onChoose, onBack }: { onChoose: (format: Format) => void; onBack: () => void }) {
+  const choices: Array<{ id: Format; label: string }> = [
+    { id: "singles", label: "Singles" },
+    { id: "doubles", label: "Doubles" },
+  ];
+
+  return (
+    <div className="sport">
+      <p className="eyebrow">Choose a game</p>
+      <h1>Are you playing singles or doubles?</h1>
+      <div className="sport-list">
+        {choices.map((choice, index) => (
+          <button
+            key={choice.id}
+            type="button"
+            className="sport-option animate__animated animate__fadeInUp"
+            style={motionStyle(index * 0.06)}
+            onClick={() => onChoose(choice.id)}
+          >
+            {choice.label}
+          </button>
+        ))}
+      </div>
+      <button type="button" className="ghost sport-back" onClick={onBack}>
+        Back
       </button>
     </div>
   );

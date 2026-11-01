@@ -1,6 +1,7 @@
-import type { CourtMatch, Pairing, Round } from "./types";
+import type { CourtMatch, Format, Pairing, Round } from "./types";
+import { playersPerCourt } from "./types";
 
-type Side = [number, number];
+type Side = number[];
 
 type BuiltMatch = {
   sideA: Side;
@@ -23,14 +24,19 @@ const FIVE_CYCLE: Array<{ sit: number; a: Side; b: Side }> = [
   { sit: 0, a: [1, 2], b: [3, 4] },
 ];
 
-export function assertConfig(playerCount: number, courtCount: number) {
-  if (courtCount < 1 || playerCount < courtCount * 4) {
+export function assertConfig(playerCount: number, courtCount: number, format: Format = "doubles") {
+  if (courtCount < 1 || playerCount < courtCount * playersPerCourt(format)) {
     throw new Error("Not enough players to fill every court.");
   }
 }
 
-export function getRound(playerCount: number, courtCount: number, gameIndex: number): Round {
-  assertConfig(playerCount, courtCount);
+export function getRound(
+  playerCount: number,
+  courtCount: number,
+  gameIndex: number,
+  format: Format = "doubles",
+): Round {
+  assertConfig(playerCount, courtCount, format);
   if (gameIndex < 0 || !Number.isInteger(gameIndex)) {
     throw new Error("Game index must be a whole number.");
   }
@@ -38,7 +44,7 @@ export function getRound(playerCount: number, courtCount: number, gameIndex: num
   const state = createState(playerCount, courtCount);
   let round: Round | null = null;
   for (let game = 0; game <= gameIndex; game += 1) {
-    round = compose(playerCount, courtCount, game, state);
+    round = compose(playerCount, courtCount, game, format, state);
     if (game < gameIndex) apply(state, round, game);
   }
   return round as Round;
@@ -48,11 +54,12 @@ export function participationFromGames(
   playerCount: number,
   courtCount: number,
   gameIndexes: number[],
+  format: Format = "doubles",
 ) {
   const played = Array(playerCount).fill(0);
   const sat = Array(playerCount).fill(0);
   for (const gameIndex of gameIndexes) {
-    const round = getRound(playerCount, courtCount, gameIndex);
+    const round = getRound(playerCount, courtCount, gameIndex, format);
     for (const sitter of round.sitting) sat[sitter] += 1;
     for (const match of round.matches) {
       for (const player of [...match.sideA, ...match.sideB]) played[player] += 1;
@@ -61,17 +68,24 @@ export function participationFromGames(
   return { played, sat };
 }
 
-function compose(playerCount: number, courtCount: number, gameIndex: number, state: State): Round {
+function compose(
+  playerCount: number,
+  courtCount: number,
+  gameIndex: number,
+  format: Format,
+  state: State,
+): Round {
   const built =
-    playerCount === 5 && courtCount === 1
+    format === "doubles" && playerCount === 5 && courtCount === 1
       ? fivePlayerMatch(gameIndex)
-      : balancedRound(playerCount, courtCount, gameIndex, state);
+      : balancedRound(playerCount, courtCount, gameIndex, format, state);
 
   const matches: CourtMatch[] = built.matches.map((match, courtIndex) => ({
     courtIndex,
     sideA: match.sideA,
     sideB: match.sideB,
-    pairs: [pairing(match.sideA, state), pairing(match.sideB, state)],
+    pairs: format === "doubles" ? [pairing(match.sideA, state), pairing(match.sideB, state)] : [],
+    repeatMatch: state.opponent[match.sideA[0]][match.sideB[0]] > 0,
   }));
 
   return { gameIndex, sitting: built.sitting, matches };
@@ -92,20 +106,44 @@ function balancedRound(
   playerCount: number,
   courtCount: number,
   gameIndex: number,
+  format: Format,
   state: State,
 ): { sitting: number[]; matches: BuiltMatch[] } {
-  const sitting = chooseSitters(playerCount, playerCount - courtCount * 4, gameIndex, state);
+  const onCourt = playersPerCourt(format);
+  const sitting = chooseSitters(playerCount, playerCount - courtCount * onCourt, gameIndex, state);
   const playing = Array.from({ length: playerCount }, (_, index) => index).filter(
     (index) => !sitting.includes(index),
   );
   const matches = assignCourts(
-    playing.length === 4
-      ? [bestSplit(playing, state)]
-      : groupPairs(pairPlayers(playing, state), state),
+    format === "singles"
+      ? singlesMatches(playing, state)
+      : playing.length === 4
+        ? [bestSplit(playing, state)]
+        : groupPairs(pairPlayers(playing, state), state),
     courtCount,
     state,
   );
   return { sitting, matches };
+}
+
+function singlesMatches(playing: number[], state: State): BuiltMatch[] {
+  const remaining = [...playing].sort((a, b) => a - b);
+  const matches: BuiltMatch[] = [];
+  while (remaining.length > 0) {
+    const anchor = remaining.shift() as number;
+    let mateIndex = 0;
+    let best = Number.POSITIVE_INFINITY;
+    for (let index = 0; index < remaining.length; index += 1) {
+      const faced = state.opponent[anchor][remaining[index]];
+      if (faced < best) {
+        best = faced;
+        mateIndex = index;
+      }
+    }
+    const mate = remaining.splice(mateIndex, 1)[0];
+    matches.push(anchor < mate ? { sideA: [anchor], sideB: [mate] } : { sideA: [mate], sideB: [anchor] });
+  }
+  return matches;
 }
 
 function chooseSitters(playerCount: number, sitCount: number, round: number, state: State) {
@@ -257,9 +295,10 @@ function permutations(count: number): number[][] {
 }
 
 function pairing(side: Side, state: State): Pairing {
+  const [a, b] = ordered(side);
   return {
-    players: ordered(side),
-    repeat: state.partner[side[0]][side[1]] > 0,
+    players: [a, b],
+    repeat: state.partner[a][b] > 0,
   };
 }
 
@@ -270,10 +309,10 @@ function apply(state: State, round: Round, gameIndex: number) {
       state.games[player] += 1;
       state.courts[player][match.courtIndex] += 1;
     }
-    addPair(state.partner, match.sideA);
-    addPair(state.partner, match.sideB);
+    if (match.sideA.length === 2) addPair(state.partner, match.sideA[0], match.sideA[1]);
+    if (match.sideB.length === 2) addPair(state.partner, match.sideB[0], match.sideB[1]);
     for (const player of match.sideA) {
-      for (const opponent of match.sideB) addPair(state.opponent, [player, opponent]);
+      for (const opponent of match.sideB) addPair(state.opponent, player, opponent);
     }
   }
 }
@@ -292,9 +331,9 @@ function square(size: number) {
   return Array.from({ length: size }, () => Array(size).fill(0));
 }
 
-function addPair(matrix: number[][], pair: Side) {
-  matrix[pair[0]][pair[1]] += 1;
-  matrix[pair[1]][pair[0]] += 1;
+function addPair(matrix: number[][], a: number, b: number) {
+  matrix[a][b] += 1;
+  matrix[b][a] += 1;
 }
 
 function cross(a: Side, b: Side, matrix: number[][]) {
@@ -305,7 +344,7 @@ function cross(a: Side, b: Side, matrix: number[][]) {
   return total;
 }
 
-function ordered(side: Side): Side {
+function ordered(side: Side): [number, number] {
   return side[0] < side[1] ? [side[0], side[1]] : [side[1], side[0]];
 }
 

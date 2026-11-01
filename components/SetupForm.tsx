@@ -1,5 +1,5 @@
 import type { Session } from "@/lib/types";
-import { MAX_COURTS, MAX_PLAYERS, MIN_COURTS, MIN_PLAYERS, sportLabel } from "@/lib/types";
+import { MAX_COURTS, MAX_PLAYERS, MIN_COURTS, playersPerCourt, sportLabel } from "@/lib/types";
 
 export function SetupForm({
   session,
@@ -12,9 +12,11 @@ export function SetupForm({
   onStart: () => void;
   onBack: () => void;
 }) {
+  const format = session.format ?? "doubles";
+  const perCourt = playersPerCourt(format);
   const courtCount = session.courtLabels.length;
   const playerCount = session.players.length;
-  const playing = courtCount * 4;
+  const playing = courtCount * perCourt;
   const enough = playerCount >= playing;
   const namesReady = session.players.every((name) => name.trim().length > 0);
   const canStart = enough && namesReady;
@@ -44,10 +46,12 @@ export function SetupForm({
           <h1>Who&apos;s playing</h1>
         </div>
         <button type="button" className="ghost" onClick={onBack}>
-          Change sport
+          {format === "singles" ? "Singles" : "Doubles"}
         </button>
       </header>
-      <p className="lede">Four on a court. Everyone else waits. The queue keeps the games fair.</p>
+      <p className="lede">
+        {perCourt === 2 ? "Two" : "Four"} on a court. Everyone else waits. The queue keeps the games fair.
+      </p>
 
       <section className="card">
         <div className="stepper">
@@ -57,7 +61,7 @@ export function SetupForm({
               type="button"
               className="icon-button"
               aria-label="Fewer players"
-              disabled={playerCount <= MIN_PLAYERS}
+              disabled={playerCount <= perCourt}
               onClick={() => setPlayerCount(playerCount - 1)}
             >
               –

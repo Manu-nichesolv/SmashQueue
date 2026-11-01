@@ -1,5 +1,5 @@
 import { getRound } from "./schedule";
-import type { CourtResult, Standing } from "./types";
+import type { CourtResult, Format, Standing } from "./types";
 
 export function parseScore(value: string) {
   if (!/^\d+$/.test(value.trim())) return null;
@@ -14,7 +14,12 @@ export function assertDecidedScore(scoreA: number, scoreB: number) {
   if (scoreA === scoreB) throw new Error("A game cannot end in a tie.");
 }
 
-export function rankStandings(players: string[], courtCount: number, results: CourtResult[]): Standing[] {
+export function rankStandings(
+  players: string[],
+  courtCount: number,
+  results: CourtResult[],
+  format: Format = "doubles",
+): Standing[] {
   const rows = players.map((name, playerIndex) => ({
     playerIndex,
     name,
@@ -24,7 +29,7 @@ export function rankStandings(players: string[], courtCount: number, results: Co
 
   for (const result of results) {
     assertDecidedScore(result.scoreA, result.scoreB);
-    const round = getRound(players.length, courtCount, result.gameIndex);
+    const round = getRound(players.length, courtCount, result.gameIndex, format);
     const match = round.matches.find((item) => item.courtIndex === result.courtIndex);
     if (!match) throw new Error("That court is not in this game.");
 

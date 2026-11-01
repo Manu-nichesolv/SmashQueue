@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { getRound } from "@/lib/schedule";
 import { parseScore } from "@/lib/standings";
-import type { CourtResult, Session } from "@/lib/types";
+import type { CourtMatch, CourtResult, Session } from "@/lib/types";
 import { sportLabel } from "@/lib/types";
 import { Fairness } from "./Fairness";
 import { motionStyle } from "./motion";
@@ -21,7 +21,7 @@ export function CourtView({
   onReset: () => void;
 }) {
   const courtCount = session.courtLabels.length;
-  const round = getRound(session.players.length, courtCount, session.gameIndex);
+  const round = getRound(session.players.length, courtCount, session.gameIndex, session.format ?? "doubles");
 
   return (
     <CourtGame
@@ -81,7 +81,11 @@ function CourtGame({
     <>
       <header className="top">
         <div>
-          <p className="eyebrow">{session.sport ? sportLabel(session.sport) : "SmashQueue"}</p>
+          <p className="eyebrow">
+            {session.sport ? sportLabel(session.sport) : "SmashQueue"}
+            {" · "}
+            {session.format === "singles" ? "Singles" : "Doubles"}
+          </p>
           <h1>Game {session.gameIndex + 1}</h1>
         </div>
       </header>
@@ -146,7 +150,7 @@ function CourtGame({
                 />
               </label>
             </div>
-            <p className="hint">{pairCopy(match.pairs, session.players)}</p>
+            <p className="hint">{matchNote(match, session.players, session.format ?? "doubles")}</p>
           </article>
         ))}
 
@@ -168,7 +172,12 @@ function CourtGame({
         )}
       </div>
 
-      <Fairness players={session.players} courtCount={courtCount} results={session.results} />
+      <Fairness
+        players={session.players}
+        courtCount={courtCount}
+        results={session.results}
+        format={session.format ?? "doubles"}
+      />
       {hasTie && <p className="error">A game cannot end in a tie.</p>}
 
       <div className="dock">
@@ -197,15 +206,21 @@ function hydrate(results: CourtResult[], gameIndex: number, courtCount: number) 
   return draft;
 }
 
-function sideLabel(side: [number, number], players: string[]) {
-  return `${players[side[0]]} & ${players[side[1]]}`;
+function sideLabel(side: number[], players: string[]) {
+  return side.map((player) => players[player]).join(" & ");
 }
 
-function pairCopy(pairs: [{ players: [number, number]; repeat: boolean }, { players: [number, number]; repeat: boolean }], players: string[]) {
-  return pairs
-    .map((pair) => {
-      const names = `${players[pair.players[0]]} & ${players[pair.players[1]]}`;
-      return pair.repeat ? `${names} have paired before` : `${names} are a new pair`;
-    })
-    .join(". ") + ".";
+function matchNote(match: CourtMatch, players: string[], format: "singles" | "doubles") {
+  if (format === "singles") {
+    const names = `${players[match.sideA[0]]} and ${players[match.sideB[0]]}`;
+    return match.repeatMatch ? `${names} have played before.` : `${names} are a new match.`;
+  }
+  return (
+    match.pairs
+      .map((pair) => {
+        const names = `${players[pair.players[0]]} & ${players[pair.players[1]]}`;
+        return pair.repeat ? `${names} have paired before` : `${names} are a new pair`;
+      })
+      .join(". ") + "."
+  );
 }

@@ -1,4 +1,4 @@
-export const MIN_PLAYERS = 4;
+export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS = 16;
 export const MIN_COURTS = 1;
 export const MAX_COURTS = 4;
@@ -18,7 +18,13 @@ export const SPORTS = [
 
 export type Sport = (typeof SPORTS)[number]["id"];
 
-export type Phase = "home" | "sport" | "setup" | "play" | "leaderboard";
+export type Format = "singles" | "doubles";
+
+export type Phase = "home" | "sport" | "format" | "setup" | "play" | "leaderboard";
+
+export function playersPerCourt(format: Format) {
+  return format === "singles" ? 2 : 4;
+}
 
 export function sportLabel(sport: Sport) {
   return SPORTS.find((item) => item.id === sport)?.label ?? "Badminton";
@@ -27,6 +33,7 @@ export function sportLabel(sport: Sport) {
 export type Session = {
   phase: Phase;
   sport: Sport | null;
+  format: Format | null;
   courtLabels: string[];
   players: string[];
   gameIndex: number;
@@ -40,9 +47,10 @@ export type Pairing = {
 
 export type CourtMatch = {
   courtIndex: number;
-  sideA: [number, number];
-  sideB: [number, number];
-  pairs: [Pairing, Pairing];
+  sideA: number[];
+  sideB: number[];
+  pairs: Pairing[];
+  repeatMatch: boolean;
 };
 
 export type Round = {

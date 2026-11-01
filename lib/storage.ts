@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import type { CourtResult, Phase, Session, Sport } from "./types";
+import type { CourtResult, Format, Phase, Session, Sport } from "./types";
 import { MAX_COURTS, MAX_PLAYERS, MIN_COURTS, MIN_PLAYERS, SPORTS } from "./types";
 
 export const STORAGE_KEY = "smashqueue-session";
@@ -8,6 +8,7 @@ export function initialSession(): Session {
   return {
     phase: "home",
     sport: null,
+    format: null,
     courtLabels: ["Court 1"],
     players: ["", "", "", "", ""],
     gameIndex: 0,
@@ -62,6 +63,7 @@ export function freshSession(session: Session): Session {
   return {
     phase: "home",
     sport: null,
+    format: null,
     courtLabels: session.courtLabels,
     players: session.players,
     gameIndex: 0,
@@ -87,13 +89,16 @@ function parseSession(value: unknown): Session | null {
   if (typeof record.gameIndex !== "number" || record.gameIndex < 0) return null;
   if (!Array.isArray(record.results) || !record.results.every(isResult)) return null;
   const sport = isSport(record.sport) ? record.sport : null;
+  const format = isFormat(record.format) ? record.format : null;
   let phase = record.phase;
-  if ((phase === "setup" || phase === "sport" || phase === "play" || phase === "leaderboard") && !sport) {
+  if ((phase === "setup" || phase === "sport" || phase === "format" || phase === "play" || phase === "leaderboard") && !sport) {
     phase = phase === "play" || phase === "leaderboard" ? phase : "home";
   }
+  const needsFormat = phase === "setup" || phase === "play" || phase === "leaderboard";
   return {
     phase,
     sport: sport ?? (phase === "play" || phase === "leaderboard" ? "badminton" : null),
+    format: format ?? (needsFormat ? "doubles" : null),
     courtLabels: record.courtLabels,
     players: record.players,
     gameIndex: record.gameIndex,
@@ -102,7 +107,18 @@ function parseSession(value: unknown): Session | null {
 }
 
 function isPhase(value: unknown): value is Phase {
-  return value === "home" || value === "sport" || value === "setup" || value === "play" || value === "leaderboard";
+  return (
+    value === "home" ||
+    value === "sport" ||
+    value === "format" ||
+    value === "setup" ||
+    value === "play" ||
+    value === "leaderboard"
+  );
+}
+
+function isFormat(value: unknown): value is Format {
+  return value === "singles" || value === "doubles";
 }
 
 function isSport(value: unknown): value is Sport {

@@ -1,11 +1,11 @@
 "use client";
 
 import { freshSession, useSession } from "@/lib/storage";
-import type { Sport } from "@/lib/types";
+import { MAX_PLAYERS, playersPerCourt, type Format, type Sport } from "@/lib/types";
 import { CourtView } from "./CourtView";
 import { Leaderboard } from "./Leaderboard";
 import { SetupForm } from "./SetupForm";
-import { CoverArt, HomeScreen, SportPicker } from "./Welcome";
+import { CoverArt, FormatPicker, HomeScreen, SportPicker } from "./Welcome";
 
 export function App() {
   const [session, setSession] = useSession();
@@ -22,10 +22,20 @@ export function App() {
   }
 
   function chooseSport(sport: Sport) {
-    setSession({ ...session, phase: "setup", sport });
+    setSession({ ...session, phase: "format", sport });
   }
 
-  const centered = session.phase === "home" || session.phase === "sport";
+  function chooseFormat(format: Format) {
+    const minimum = playersPerCourt(format);
+    const named = session.players.some((name) => name.trim());
+    let players = [...session.players];
+    if (!named) players = format === "singles" ? ["", "", ""] : ["", "", "", "", ""];
+    while (players.length < minimum) players.push("");
+    if (players.length > MAX_PLAYERS) players = players.slice(0, MAX_PLAYERS);
+    setSession({ ...session, phase: "setup", format, players });
+  }
+
+  const centered = session.phase === "home" || session.phase === "sport" || session.phase === "format";
   const shellClass = session.phase === "play" ? "shell playing" : centered ? "shell home-shell" : "shell";
 
   return (
@@ -35,12 +45,15 @@ export function App() {
       {session.phase === "sport" && (
         <SportPicker onChoose={chooseSport} onBack={() => setSession({ ...session, phase: "home" })} />
       )}
+      {session.phase === "format" && (
+        <FormatPicker onChoose={chooseFormat} onBack={() => setSession({ ...session, phase: "sport" })} />
+      )}
       {session.phase === "setup" && (
         <SetupForm
           session={session}
           onChange={setSession}
           onStart={start}
-          onBack={() => setSession({ ...session, phase: "sport" })}
+          onBack={() => setSession({ ...session, phase: "format" })}
         />
       )}
       {session.phase === "play" && (

@@ -1,19 +1,21 @@
 import { participationFromGames } from "@/lib/schedule";
 import { rankStandings, scoredGameIndexes } from "@/lib/standings";
-import type { CourtResult } from "@/lib/types";
+import type { CourtResult, Format } from "@/lib/types";
 
 export function Fairness({
   players,
   courtCount,
   results,
+  format,
 }: {
   players: string[];
   courtCount: number;
   results: CourtResult[];
+  format: Format;
 }) {
-  const standings = rankStandings(players, courtCount, results);
+  const standings = rankStandings(players, courtCount, results, format);
   const points = new Map(standings.map((row) => [row.playerIndex, row.points]));
-  const { played, sat } = participationFromGames(players.length, courtCount, scoredGameIndexes(results));
+  const { played, sat } = participationFromGames(players.length, courtCount, scoredGameIndexes(results), format);
 
   return (
     <section>
