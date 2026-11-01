@@ -5,7 +5,7 @@ import type { Sport } from "@/lib/types";
 import { CourtView } from "./CourtView";
 import { Leaderboard } from "./Leaderboard";
 import { SetupForm } from "./SetupForm";
-import { HomeScreen, SportPicker } from "./Welcome";
+import { CoverArt, HomeScreen, SportPicker } from "./Welcome";
 
 export function App() {
   const [session, setSession] = useSession();
@@ -30,6 +30,7 @@ export function App() {
 
   return (
     <main className={shellClass}>
+      {centered && <CoverArt />}
       {session.phase === "home" && <HomeScreen onPlay={() => setSession({ ...session, phase: "sport" })} />}
       {session.phase === "sport" && (
         <SportPicker onChoose={chooseSport} onBack={() => setSession({ ...session, phase: "home" })} />
