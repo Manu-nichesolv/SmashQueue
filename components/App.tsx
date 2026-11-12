@@ -67,6 +67,12 @@ export function App() {
       {session.phase === "leaderboard" && (
         <Leaderboard session={session} onNewSession={() => setSession(freshSession(session))} />
       )}
+      <footer className="site-footer">
+        Built by{" "}
+        <a href="https://www.linkedin.com/in/manu-m-benakal-b27bb4220/" target="_blank" rel="noopener noreferrer">
+          Manu M Benakal
+        </a>
+      </footer>
     </main>
   );
 }
